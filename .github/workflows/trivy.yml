@@ -6,39 +6,19 @@ on:
 jobs:
   security:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Trivy (console output)
-        uses: aquasecurity/trivy-action@0.28.0
-        env:
-          TRIVY_SKIP_DB_UPDATE: true
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '0'
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+          trivy --version
 
-      - name: Run Trivy (sarif)
-        uses: aquasecurity/trivy-action@0.28.0
-        env:
-          TRIVY_SKIP_DB_UPDATE: true
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '0'
-          output: 'trivy-results.sarif'
-
-      - name: Upload to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
+      - name: Run Trivy (table)
+        run: |
+          trivy fs --severity HIGH,CRITICAL --format table .
